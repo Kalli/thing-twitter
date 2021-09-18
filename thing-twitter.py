@@ -1,9 +1,17 @@
 import requests
 from bs4 import BeautifulSoup
 import pandas as pd
+import tweepy
+import json 
+import time
+import os
 
 mp_url = 'https://www.althingi.is/thingmenn/althingismenn/'
 
+
+auth = tweepy.OAuthHandler(os.environ.get('consumer_key', ''), os.environ.get('consumer_secret', ''))
+auth.set_access_token(os.environ.get('access_token', ''), os.environ.get('access_token_secret', ''))
+api = tweepy.API(auth, wait_on_rate_limit=True)
 
 # Fetch the list of MPs from althingi.is along with basic attributes
 def get_mps():
@@ -50,9 +58,76 @@ def get_twitter_link(link):
         return None
 
 
+def get_twitter_details(twitter_link):
+    twitter_handle = twitter_link.split('/')[-1].replace('@', '')
+    try: 
+        user = api.get_user(twitter_handle)
+        with open ('./data/{0}.json'.format(twitter_handle), 'w') as fp:
+            json.dump(user._json, fp)
+        user_data = {
+            'username': twitter_handle,
+            'twitter_link': twitter_link,
+            'name': user.name,
+            'created_at': user.created_at,
+            'id': user.id,
+            'followers_count': user.followers_count,
+            'favourites_count': user.favourites_count,
+            'friends_count': 914,
+            'profile_image_url': user.profile_image_url,
+            'url': user.url,
+            'verified': user.verified,
+            'description': user.description,
+            'statuses_count': user.statuses_count,
+            'last_tweet': user.status.created_at,
+        }
+        return user_data
+    except Exception as e:
+        return {}
+
+
+def get_twitter_info(mps):
+    try:
+        return pd.read_csv('./twitter-info.csv')
+    except: 
+        twitter_info = []
+        tweeting_mps = mps[mps['twitter'].notnull()]
+        for index, row in tweeting_mps.iterrows():
+            print('Processing {0} of {1}'.format(index, len(tweeting_mps)))
+
+            twitter_info.append(get_twitter_details(row['twitter']))
+            time.sleep(5)
+        df = pd.DataFrame.from_records(twitter_info)
+        df.to_csv('./twitter-info.csv', index=False)
+        return df
+
+
+def get_twitter_friends(twitter_users):
+    try: 
+        with open('./friends.json', 'r') as fp:
+            return json.load(fp)
+    except:
+        t = {}
+        twitter_users_id = set(twitter_users['id'].tolist())
+        user_ids_to_username = dict(zip(twitter_users.id, twitter_users.username))
+        for index, row in twitter_users.iterrows():
+            print('Fetching friends for {0} of {1}'.format(index, len(twitter_users)))
+            # get the ids of all the users this user follows
+            twitter_friend_ids = [
+                _id for _id in api.friends_ids(row['username'])
+            ]
+
+            # get the intersection of this users friends with our other users
+            intersection = list(twitter_users_id & set(twitter_friend_ids))
+            # translate the intersection into usernames
+            t[row['username']] = [user_ids_to_username[user_id] for user_id in intersection]
+        with open ('./friends.json', 'w') as fp:
+            json.dump(t, fp)
+    return twitter_friends    
+
+
 df = get_mps()
 if not 'twitter' in df:
     df['twitter'] = df['link'].apply(get_twitter_link)
 
-
-df.to_csv('./mps.csv')
+twitter_info = get_twitter_info(df)
+twitter_friends = get_twitter_friends(twitter_info)
