@@ -5,6 +5,11 @@ import tweepy
 import json 
 import time
 import os
+import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
+from matplotlib.offsetbox import AnchoredText
+
 
 mp_url = 'https://www.althingi.is/thingmenn/althingismenn/'
 
@@ -12,6 +17,19 @@ mp_url = 'https://www.althingi.is/thingmenn/althingismenn/'
 auth = tweepy.OAuthHandler(os.environ.get('consumer_key', ''), os.environ.get('consumer_secret', ''))
 auth.set_access_token(os.environ.get('access_token', ''), os.environ.get('access_token_secret', ''))
 api = tweepy.API(auth, wait_on_rate_limit=True)
+
+
+sns.set_theme(style="whitegrid", font_scale=0.75, font='Helvetica')
+party_colours = {
+    "Sjálfstæðisflokkur": "#00adef",
+    "Vinstrihreyfingin - grænt framboð": "#217462",
+    "Miðflokkurinn": "#002169",
+    "Samfylkingin": "#ea0138",
+    "Framsóknarflokkur": "#00683F",
+    "Píratar": "#7b68ee",
+    "Viðreisn": "#FF7D14",
+    "Flokkur fólksins": "#FFCA3E",
+}
 
 # Fetch the list of MPs from althingi.is along with basic attributes
 def get_mps():
@@ -122,8 +140,46 @@ def get_twitter_friends(twitter_users):
             t[row['username']] = [user_ids_to_username[user_id] for user_id in intersection]
         with open ('./friends.json', 'w') as fp:
             json.dump(t, fp)
-    return twitter_friends    
+    return twitter_friends
 
+
+def join_frames(df, twitter_info):
+    twitter_info = twitter_info.set_index('twitter_link')
+    df = df.set_index('twitter')
+    return twitter_info.join(df, lsuffix='_twitter', rsuffix='_mp')
+
+
+def followers_by_party(df):
+    by_party = df.groupby('party')
+    agg = by_party.agg({'followers_count': ['sum', 'mean', 'median']})
+    
+    # shamelessly "inspired" by https://seaborn.pydata.org/examples/palette_choices.html
+    # Set up the matplotlib figure
+    f, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(12, 12), sharex=True)
+    f.figure.suptitle('Þá tísti Þingheimur - Twitter tölfræði alþingismanna')
+
+    sns.barplot(x=agg.index, y=agg['followers_count']['sum'], palette=party_colours, ax=ax1)
+    ax1.axhline(color="k", clip_on=False)
+    ax1.set_ylabel("Heildar fjöldi fylgjanda")
+    ax1.set_xlabel("")
+
+    sns.barplot(x=agg.index, y=agg['followers_count']['median'], palette=party_colours, ax=ax2)
+    ax2.axhline(color="k", clip_on=False)
+    ax2.set_ylabel("Miðgildi fjölda fylgjanda á þingmann")
+    ax2.set_xlabel("")
+
+    sns.barplot(x=agg.index, y=agg['followers_count']['mean'], palette=party_colours, ax=ax3)
+    ax3.axhline(color="k", clip_on=False)
+    ax3.set_ylabel("Meðalfjöldi fylgjanda á þingmann")
+    ax3.set_xlabel("Fjöldi twitter fylgjanda eftir flokkum")
+    ax3.set_xticklabels(agg.index, va='top')
+
+    # Finalize the plot
+    sns.despine(bottom=True)
+    plt.setp(f.axes)
+    plt.tight_layout(h_pad=2, rect=(1, 1, 1, 1))
+    f.text(0, 0, '@karltryggvason - 2021 / heimildir: althingi.is og twitter.com', va='bottom')
+    plt.savefig('followers-by-party.png')
 
 df = get_mps()
 if not 'twitter' in df:
@@ -131,3 +187,5 @@ if not 'twitter' in df:
 
 twitter_info = get_twitter_info(df)
 twitter_friends = get_twitter_friends(twitter_info)
+joined = join_frames(df, twitter_info)
+followers_by_party(joined)
