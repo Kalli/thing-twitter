@@ -1,3 +1,4 @@
+from typing import OrderedDict
 import requests
 from bs4 import BeautifulSoup
 import pandas as pd
@@ -8,7 +9,6 @@ import os
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
-from matplotlib.offsetbox import AnchoredText
 
 
 mp_url = 'https://www.althingi.is/thingmenn/althingismenn/'
@@ -20,16 +20,16 @@ api = tweepy.API(auth, wait_on_rate_limit=True)
 
 
 sns.set_theme(style="whitegrid", font_scale=0.75, font='Helvetica')
-party_colours = {
+party_colours = OrderedDict({
+    "Flokkur fólksins": "#FFCA3E",
+    "Framsóknarflokkur": "#00683F",
+    "Miðflokkurinn": "#002169",
+    "Píratar": "#7b68ee",
+    "Samfylkingin": "#ea0138",
     "Sjálfstæðisflokkur": "#00adef",
     "Vinstrihreyfingin - grænt framboð": "#217462",
-    "Miðflokkurinn": "#002169",
-    "Samfylkingin": "#ea0138",
-    "Framsóknarflokkur": "#00683F",
-    "Píratar": "#7b68ee",
     "Viðreisn": "#FF7D14",
-    "Flokkur fólksins": "#FFCA3E",
-}
+})
 
 # Fetch the list of MPs from althingi.is along with basic attributes
 def get_mps():
@@ -181,6 +181,38 @@ def followers_by_party(df):
     f.text(0, 0, '@karltryggvason - 2021 / heimildir: althingi.is og twitter.com', va='bottom')
     plt.savefig('followers-by-party.png')
 
+
+def party_twitter_users(df):
+    data = df.groupby('party').agg(
+        {'twitter': 'count', 'name': 'count'}
+    )
+    data.diff = data.name - data.twitter
+    x = np.arange(len(data.index))  # the label locations
+    width = 0.5  # the width of the bars
+
+    fig, ax = plt.subplots(figsize=(12, 12))
+    ax.bar(data.index, data.twitter, width, label='Fjöldi Þingmanna á Twitter', color=party_colours.values(), hatch='///')
+    ax.bar(data.index, data.diff, width, label='Fjöldi Þingmanna', bottom=data.twitter, color=party_colours.values())
+    plt.rcParams['hatch.linewidth'] = 0.3
+    ax.set_ylabel('Fjöldi')
+    ax.set_title('Fjöldi Þingmanna og fjöldi þingmanna á Twitter eftir flokkum')
+    ax.set_xticks(x)
+    labels = [
+        '\n' + l if i % 2 != 0 else l for i, l in enumerate(data.index)
+    ]
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    ax.set_xticklabels(labels)
+    ax.legend(fontsize='large', markerscale=2)
+    ax.grid(False, axis="x")
+    fig.text(0, 0, '@karltryggvason - 2021 / heimildir: althingi.is og twitter.com', va='bottom')
+    fig.suptitle('Þá tísti Þingheimur - Twitter tölfræði alþingismanna')
+    plt.setp(fig.axes)
+    plt.tight_layout(h_pad=2, rect=(1, 1, 1, 1))
+    plt.savefig('party-twitter-users.png')
+    plt.show()
+
+
 df = get_mps()
 if not 'twitter' in df:
     df['twitter'] = df['link'].apply(get_twitter_link)
@@ -189,3 +221,4 @@ twitter_info = get_twitter_info(df)
 twitter_friends = get_twitter_friends(twitter_info)
 joined = join_frames(df, twitter_info)
 followers_by_party(joined)
+party_twitter_users(df)
