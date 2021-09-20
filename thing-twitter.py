@@ -9,10 +9,11 @@ import os
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
+from bubblechart import BubbleChart
 
 
 mp_url = 'https://www.althingi.is/thingmenn/althingismenn/'
-
+footer_text = '@karltryggvason - 09.2021 / heimildir: althingi.is og twitter.com'
 
 auth = tweepy.OAuthHandler(os.environ.get('consumer_key', ''), os.environ.get('consumer_secret', ''))
 auth.set_access_token(os.environ.get('access_token', ''), os.environ.get('access_token_secret', ''))
@@ -105,7 +106,7 @@ def get_twitter_details(twitter_link):
 
 def get_twitter_info(mps):
     try:
-        return pd.read_csv('./twitter-info.csv')
+        return pd.read_csv('./twitter-info.csv', parse_dates=['created_at'])
     except: 
         twitter_info = []
         tweeting_mps = mps[mps['twitter'].notnull()]
@@ -178,7 +179,7 @@ def followers_by_party(df):
     sns.despine(bottom=True)
     plt.setp(f.axes)
     plt.tight_layout(h_pad=2, rect=(1, 1, 1, 1))
-    f.text(0, 0, '@karltryggvason - 2021 / heimildir: althingi.is og twitter.com', va='bottom')
+    f.text(0, 0, footer_text, va='bottom')
     plt.savefig('followers-by-party.png')
 
 
@@ -205,12 +206,38 @@ def party_twitter_users(df):
     ax.set_xticklabels(labels)
     ax.legend(fontsize='large', markerscale=2)
     ax.grid(False, axis="x")
-    fig.text(0, 0, '@karltryggvason - 2021 / heimildir: althingi.is og twitter.com', va='bottom')
+    fig.text(0, 0, footer_text, va='bottom')
     fig.suptitle('Þá tísti Þingheimur - Twitter tölfræði alþingismanna')
     plt.setp(fig.axes)
     plt.tight_layout(h_pad=2, rect=(1, 1, 1, 1))
     plt.savefig('party-twitter-users.png')
     plt.show()
+
+
+def format_name(row):
+    return '@{0}\n{1}k'.format(row.username, round(row.followers_count/1000, 1))
+
+
+def mp_twitter_scatterchart(df):
+    df['color'] = df['party'].apply(lambda x: party_colours[x])
+    df = df.sort_values(by=['party'])
+
+    bubble_chart = BubbleChart(area=df['followers_count'], bubble_spacing=1)
+    bubble_chart.collapse()
+    f, ax = plt.subplots(subplot_kw=dict(aspect="equal"), figsize=(12, 12), facecolor="#2d5382")
+
+    annotations = df.apply(format_name, axis=1)
+
+    bubble_chart.plot(ax, annotations, df['color'])
+    
+    ax.axis("off")
+    ax.relim()
+    ax.autoscale_view()
+
+    f.text(0, 0, footer_text, va='bottom', color='#ffffff')
+    f.suptitle('Þingmenn eftir fjölda Twitter Fylgjenda', color='#ffffff', fontsize="large")
+    plt.tight_layout(pad=0)
+    plt.savefig('mp-twitter-users-follower-counts.png')
 
 
 df = get_mps()
@@ -222,3 +249,4 @@ twitter_friends = get_twitter_friends(twitter_info)
 joined = join_frames(df, twitter_info)
 followers_by_party(joined)
 party_twitter_users(df)
+mp_twitter_scatterchart(joined)
