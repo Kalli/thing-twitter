@@ -39,6 +39,14 @@ party_colours = OrderedDict({
     "Viðreisn": "#FF7D14",
 })
 
+
+the_government = [
+    "Framsóknarflokkur",
+    "Sjálfstæðisflokkur",
+    "Vinstrihreyfingin - grænt framboð"
+]
+
+
 # Fetch the list of MPs from althingi.is along with basic attributes
 def get_mps():
     try:
@@ -223,6 +231,33 @@ def party_twitter_users(df):
     plt.savefig('party-twitter-users.png')
 
 
+def government_twitter_users(df):
+    df['government']= df['party'].apply(lambda x: x in the_government)
+    data = df.groupby('government').agg(
+        {'followers_count': 'sum'}
+    )
+
+    width = 0.5  # the width of the bars
+    fig, ax = plt.subplots(figsize=(12, 12))
+    ax.bar(['Stjórnarandstaða', 'Stjórn'], data.followers_count, width,
+        label='Fylgjendur tístandi Þingmanna', color=['#1c79c2', '#1c79c2']
+    )
+    
+    ax.set_ylabel('Fjöldi fylgjenda', color='#ffffff')
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    ax.set_xticklabels(['Stjórnarandstaða', 'Stjórn'], color='#ffffff')
+
+    ax.legend(fontsize='large', markerscale=10, loc='best', edgecolor=background_colour)
+    
+    ax.grid(False, axis='x')
+    fig.text(0, 0, footer_text, va='bottom')
+    fig.suptitle('Fjöldi Twitter fylgjanda þingmanna í stjórn og stjórnarandstöðu')
+    plt.setp(fig.axes)
+    plt.tight_layout(h_pad=2, rect=(1, 1, 1, 1))
+    plt.savefig('followers-by-government.png')
+
+
 def format_name(row):
     return '@{0}\n{1}k'.format(row.username, round(row.followers_count/1000, 1))
 
@@ -258,4 +293,5 @@ twitter_friends = get_twitter_friends(twitter_info)
 joined = join_frames(df, twitter_info)
 followers_by_party(joined)
 party_twitter_users(df)
+government_twitter_users(joined)
 mp_twitter_scatterchart(joined)
