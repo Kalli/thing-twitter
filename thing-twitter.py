@@ -40,12 +40,19 @@ party_colours = OrderedDict({
     "Viðreisn": "#FF7D14",
 })
 
-
 the_government = [
     "Framsóknarflokkur",
     "Sjálfstæðisflokkur",
     "Vinstrihreyfingin - grænt framboð"
 ]
+
+party_leaders_twitter = {
+    "Miðflokkurinn": "sigmundurdavid",
+    "Samfylkingin": "logieinarsson",
+    "Sjálfstæðisflokkur": "Bjarni_Ben",
+    "Vinstrihreyfingin - grænt framboð": "katrinjak",
+    "Viðreisn": "thorgkatrin",
+}
 
 
 # Fetch the list of MPs from althingi.is along with basic attributes
@@ -286,6 +293,18 @@ def mp_followers(twitter_friends, twitter_info):
     return twitter_info
     
 
+# check whether a twitter user follows their party leader
+def follow_the_leader(df):
+    def f(username, party):
+        if party not in party_leaders_twitter:
+            return True
+        if username == party_leaders_twitter[party]:
+            return True
+        return party_leaders_twitter[party] in twitter_friends[username]
+    df['follows_the_leader'] = df.apply(lambda row: f(row.username, row.party), axis=1)
+    return df
+
+
 df = get_mps()
 if not 'twitter' in df:
     df['twitter'] = df['link'].apply(get_twitter_link)
@@ -307,3 +326,5 @@ def format_name(username, attribute):
     return '@{0}\n{1}'.format(username, attribute)
 joined = mp_followers(twitter_friends, joined)
 mp_scatterchart(joined, 'mp_follow_counts', format_name, 100, 'Þingmenn eftir fjölda annara þingmanna sem fylgja þeim á Twitter')
+
+joined = follow_the_leader(joined)
