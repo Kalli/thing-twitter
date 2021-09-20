@@ -20,7 +20,14 @@ auth.set_access_token(os.environ.get('access_token', ''), os.environ.get('access
 api = tweepy.API(auth, wait_on_rate_limit=True)
 
 
-sns.set_theme(style="whitegrid", font_scale=0.75, font='Helvetica')
+sns.set_theme(style='white', font_scale=0.75, font='Helvetica')
+background_colour = '#2d5382'
+sns.set(rc={
+    'axes.facecolor': background_colour, 'figure.facecolor': background_colour, 
+    'axes.edgecolor': '#ffffff', 'patch.edgecolor': '#ffffff',
+    'axes.labelcolor': '#ffffff', 'text.color': '#ffffff', 'ytick.color': '#ffffff'
+})
+
 party_colours = OrderedDict({
     "Flokkur fólksins": "#FFCA3E",
     "Framsóknarflokkur": "#00683F",
@@ -156,30 +163,32 @@ def followers_by_party(df):
     
     # shamelessly "inspired" by https://seaborn.pydata.org/examples/palette_choices.html
     # Set up the matplotlib figure
-    f, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(12, 12), sharex=True)
-    f.figure.suptitle('Þá tísti Þingheimur - Twitter tölfræði alþingismanna')
+    f, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(12, 12), sharex=True, facecolor=background_colour)
+    f.figure.suptitle('Fjöldi twitter fylgjanda eftir flokkum')
 
     sns.barplot(x=agg.index, y=agg['followers_count']['sum'], palette=party_colours, ax=ax1)
-    ax1.axhline(color="k", clip_on=False)
-    ax1.set_ylabel("Heildar fjöldi fylgjanda")
-    ax1.set_xlabel("")
+    ax1.set_ylabel('Heildar fjöldi fylgjanda', color='#ffffff')
+    ax1.set_xlabel('')
 
     sns.barplot(x=agg.index, y=agg['followers_count']['median'], palette=party_colours, ax=ax2)
-    ax2.axhline(color="k", clip_on=False)
-    ax2.set_ylabel("Miðgildi fjölda fylgjanda á þingmann")
-    ax2.set_xlabel("")
+    ax2.set_ylabel('Miðgildi fjölda fylgjanda á þingmann', color='#ffffff')
+    ax2.set_xlabel('')
+    ax2.spines['bottom'].set_color('#ffffff')
 
     sns.barplot(x=agg.index, y=agg['followers_count']['mean'], palette=party_colours, ax=ax3)
-    ax3.axhline(color="k", clip_on=False)
-    ax3.set_ylabel("Meðalfjöldi fylgjanda á þingmann")
-    ax3.set_xlabel("Fjöldi twitter fylgjanda eftir flokkum")
-    ax3.set_xticklabels(agg.index, va='top')
+    ax3.set_ylabel('Meðalfjöldi fylgjanda á þingmann', color='#ffffff')
+    ax3.set_xlabel('')
+
+    labels = [
+        '\n' + l if i % 2 != 0 else l for i, l in enumerate(agg.index)
+    ]
+    ax3.set_xticklabels(labels, color='#ffffff')
 
     # Finalize the plot
     sns.despine(bottom=True)
     plt.setp(f.axes)
     plt.tight_layout(h_pad=2, rect=(1, 1, 1, 1))
-    f.text(0, 0, footer_text, va='bottom')
+    f.text(0, 0, footer_text, va='bottom', color='#ffffff')
     plt.savefig('followers-by-party.png')
 
 
@@ -194,24 +203,24 @@ def party_twitter_users(df):
     fig, ax = plt.subplots(figsize=(12, 12))
     ax.bar(data.index, data.twitter, width, label='Fjöldi Þingmanna á Twitter', color=party_colours.values(), hatch='///')
     ax.bar(data.index, data.diff, width, label='Fjöldi Þingmanna', bottom=data.twitter, color=party_colours.values())
-    plt.rcParams['hatch.linewidth'] = 0.3
-    ax.set_ylabel('Fjöldi')
-    ax.set_title('Fjöldi Þingmanna og fjöldi þingmanna á Twitter eftir flokkum')
+    plt.rcParams['hatch.linewidth'] = 0.4
+    ax.set_ylabel('Fjöldi', color='#ffffff')
     ax.set_xticks(x)
     labels = [
         '\n' + l if i % 2 != 0 else l for i, l in enumerate(data.index)
     ]
     ax.spines['right'].set_visible(False)
     ax.spines['top'].set_visible(False)
-    ax.set_xticklabels(labels)
-    ax.legend(fontsize='large', markerscale=2)
-    ax.grid(False, axis="x")
+    ax.set_xticklabels(labels, color='#ffffff')
+
+    ax.legend(fontsize='large', markerscale=10, loc='best', edgecolor=background_colour)
+    
+    ax.grid(False, axis='x')
     fig.text(0, 0, footer_text, va='bottom')
-    fig.suptitle('Þá tísti Þingheimur - Twitter tölfræði alþingismanna')
+    fig.suptitle('Fjöldi Þingmanna og fjöldi tístandi þingmanna eftir flokkum')
     plt.setp(fig.axes)
     plt.tight_layout(h_pad=2, rect=(1, 1, 1, 1))
     plt.savefig('party-twitter-users.png')
-    plt.show()
 
 
 def format_name(row):
@@ -224,7 +233,7 @@ def mp_twitter_scatterchart(df):
 
     bubble_chart = BubbleChart(area=df['followers_count'], bubble_spacing=1)
     bubble_chart.collapse()
-    f, ax = plt.subplots(subplot_kw=dict(aspect="equal"), figsize=(12, 12), facecolor="#2d5382")
+    f, ax = plt.subplots(subplot_kw=dict(aspect="equal"), figsize=(12, 12), facecolor=background_colour)
 
     annotations = df.apply(format_name, axis=1)
 
