@@ -10,6 +10,7 @@ import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 from bubblechart import BubbleChart
+from collections import Counter
 
 
 mp_url = 'https://www.althingi.is/thingmenn/althingismenn/'
@@ -258,18 +259,13 @@ def government_twitter_users(df):
     plt.savefig('followers-by-government.png')
 
 
-def mp_twitter_scatterchart(df):
+def mp_scatterchart(df, attribute, format_function, collapse, title):
     df['color'] = df['party'].apply(lambda x: party_colours[x])
     df = df.sort_values(by=['party'])
-
-    def format_name(row):
-        return '@{0}\n{1}k'.format(row.username, round(row.followers_count/1000, 1))
-    
-    bubble_chart = BubbleChart(area=df['followers_count'], bubble_spacing=1)
-    bubble_chart.collapse()
+    annotations = df.apply(lambda x: format_function(x.username, x[attribute]), axis=1)
+    bubble_chart = BubbleChart(area=df[attribute], bubble_spacing=1)
+    bubble_chart.collapse(collapse)
     f, ax = plt.subplots(subplot_kw=dict(aspect="equal"), figsize=(12, 12), facecolor=background_colour)
-
-    annotations = df.apply(format_name, axis=1)
 
     bubble_chart.plot(ax, annotations, df['color'])
     
@@ -278,40 +274,21 @@ def mp_twitter_scatterchart(df):
     ax.autoscale_view()
 
     f.text(0, 0, footer_text, va='bottom', color='#ffffff')
-    f.suptitle('Þingmenn eftir fjölda Twitter Fylgjenda', color='#ffffff', fontsize="large")
+    f.suptitle(title, color='#ffffff', fontsize="large")
     plt.tight_layout(pad=0)
-    plt.savefig('mp-twitter-users-follower-counts.png')
+    plt.savefig('mp-twitter-users-{0}.png'.format(attribute))
 
 
-def mp_tweets_scatterchart(df):
-    df['color'] = df['party'].apply(lambda x: party_colours[x])
-    df = df.sort_values(by=['party'])
+def mp_followers(twitter_friends, twitter_info):
+    usernames = [username for i in twitter_friends.values()for username in i]
+    follow_counts = Counter(usernames)
+    twitter_info['mp_follow_counts'] = twitter_info['username'].apply(lambda username: follow_counts[username])
+    return twitter_info
     
-    def format_name(row):
-        return '@{0}\n{1}k'.format(row.username, round(row.statuses_count/1000, 1))
-
-    bubble_chart = BubbleChart(area=df['statuses_count'], bubble_spacing=1)
-    bubble_chart.collapse(5)
-    f, ax = plt.subplots(subplot_kw=dict(aspect="equal"), figsize=(12, 12), facecolor=background_colour)
-
-    annotations = df.apply(format_name, axis=1)
-
-    bubble_chart.plot(ax, annotations, df['color'])
-    
-    ax.axis("off")
-    ax.relim()
-    ax.autoscale_view()
-
-    f.text(0, 0, footer_text, va='bottom', color='#ffffff')
-    f.suptitle('Þingmenn eftir fjölda tísta', color='#ffffff', fontsize="large")
-    plt.tight_layout(pad=0)
-    plt.savefig('mp-twitter-users-status-counts.png')
-
 
 df = get_mps()
 if not 'twitter' in df:
     df['twitter'] = df['link'].apply(get_twitter_link)
-
 twitter_info = get_twitter_info(df)
 twitter_friends = get_twitter_friends(twitter_info)
 joined = join_frames(df, twitter_info)
@@ -319,5 +296,14 @@ count_by_party(joined, 'followers_count', 'twitter fylgjanda')
 count_by_party(joined, 'statuses_count', 'tísta')
 party_twitter_users(df)
 government_twitter_users(joined)
-mp_twitter_scatterchart(joined)
-mp_tweets_scatterchart(joined)
+
+def format_name(username, attribute):
+    return '@{0}\n{1}k'.format(username, round(attribute/1000, 1))
+
+mp_scatterchart(joined, 'followers_count', format_name, 50, 'Þingmenn eftir fjölda Twitter Fylgjenda')
+mp_scatterchart(joined, 'statuses_count', format_name, 5, 'Þingmenn eftir fjölda tísta')
+
+def format_name(username, attribute):
+    return '@{0}\n{1}'.format(username, attribute)
+joined = mp_followers(twitter_friends, joined)
+mp_scatterchart(joined, 'mp_follow_counts', format_name, 100, 'Þingmenn eftir fjölda annara þingmanna sem fylgja þeim á Twitter')
