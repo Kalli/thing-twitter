@@ -165,26 +165,26 @@ def join_frames(df, twitter_info):
     return twitter_info.join(df, lsuffix='_twitter', rsuffix='_mp')
 
 
-def followers_by_party(df):
+def count_by_party(df, attribute, name):
     by_party = df.groupby('party')
-    agg = by_party.agg({'followers_count': ['sum', 'mean', 'median']})
+    agg = by_party.agg({attribute: ['sum', 'mean', 'median']})
     
     # shamelessly "inspired" by https://seaborn.pydata.org/examples/palette_choices.html
     # Set up the matplotlib figure
     f, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(12, 12), sharex=True, facecolor=background_colour)
-    f.figure.suptitle('Fjöldi twitter fylgjanda eftir flokkum')
+    f.figure.suptitle('Fjöldi {} eftir flokkum'.format(name))
 
-    sns.barplot(x=agg.index, y=agg['followers_count']['sum'], palette=party_colours, ax=ax1)
-    ax1.set_ylabel('Heildar fjöldi fylgjanda', color='#ffffff')
+    sns.barplot(x=agg.index, y=agg[attribute]['sum'], palette=party_colours, ax=ax1)
+    ax1.set_ylabel('Samtals'.format(name), color='#ffffff')
     ax1.set_xlabel('')
 
-    sns.barplot(x=agg.index, y=agg['followers_count']['median'], palette=party_colours, ax=ax2)
-    ax2.set_ylabel('Miðgildi fjölda fylgjanda á þingmann', color='#ffffff')
+    sns.barplot(x=agg.index, y=agg[attribute]['median'], palette=party_colours, ax=ax2)
+    ax2.set_ylabel('Miðgildi Þingmanna', color='#ffffff')
     ax2.set_xlabel('')
     ax2.spines['bottom'].set_color('#ffffff')
 
-    sns.barplot(x=agg.index, y=agg['followers_count']['mean'], palette=party_colours, ax=ax3)
-    ax3.set_ylabel('Meðalfjöldi fylgjanda á þingmann', color='#ffffff')
+    sns.barplot(x=agg.index, y=agg[attribute]['mean'], palette=party_colours, ax=ax3)
+    ax3.set_ylabel('Meðaltal á Þingmann', color='#ffffff')
     ax3.set_xlabel('')
 
     labels = [
@@ -197,7 +197,7 @@ def followers_by_party(df):
     plt.setp(f.axes)
     plt.tight_layout(h_pad=2, rect=(1, 1, 1, 1))
     f.text(0, 0, footer_text, va='bottom', color='#ffffff')
-    plt.savefig('followers-by-party.png')
+    plt.savefig('{0}-by-party.png'.format(attribute))
 
 
 def party_twitter_users(df):
@@ -258,9 +258,6 @@ def government_twitter_users(df):
     plt.savefig('followers-by-government.png')
 
 
-
-
-
 def mp_twitter_scatterchart(df):
     df['color'] = df['party'].apply(lambda x: party_colours[x])
     df = df.sort_values(by=['party'])
@@ -318,7 +315,8 @@ if not 'twitter' in df:
 twitter_info = get_twitter_info(df)
 twitter_friends = get_twitter_friends(twitter_info)
 joined = join_frames(df, twitter_info)
-followers_by_party(joined)
+count_by_party(joined, 'followers_count', 'twitter fylgjanda')
+count_by_party(joined, 'statuses_count', 'tísta')
 party_twitter_users(df)
 government_twitter_users(joined)
 mp_twitter_scatterchart(joined)
